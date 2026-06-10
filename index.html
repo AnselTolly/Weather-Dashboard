@@ -92,13 +92,14 @@
   .obs-line{font-family:var(--mono);font-size:12.5px;padding:5px 0;display:flex;justify-content:space-between;border-bottom:1px dashed rgba(46,197,255,.08)}
   .route{font-size:10px;color:var(--dim);font-weight:700}
   .bigval input{border-radius:4px}
+  @media(min-width:1200px){#histCard{grid-column:span 2}}
   .bigtemp{font-family:var(--mono);font-size:56px;line-height:1;color:var(--orange);text-shadow:0 0 26px var(--orange-glow);text-align:center;padding:6px 10px}
   .chartwrap{position:relative;height:200px}
 </style>
 </head>
 <body>
 <header>
-  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.5</span></small></h1>
+  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.6</span></small></h1>
   <div class="controls">
     <select id="citySel"></select>
     <input type="date" id="dateSel">
@@ -155,9 +156,9 @@
     <div class="dim" style="margin-top:10px">Max-so-far is a hard floor on the settlement high. The market settles on this feed (whole °F), not NWS.</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="histCard" style="display:flex;flex-direction:column">
     <h2>5-Day Highs &amp; Lows vs Model</h2>
-    <div class="chartwrap" style="height:240px"><canvas id="histChart"></canvas></div>
+    <div class="chartwrap" style="flex:1;min-height:260px"><canvas id="histChart"></canvas></div>
     <div class="dim" style="margin-top:8px">Sensor highs (orange) &amp; lows (cyan) to 0.01°F · <span style="color:#ffd166">◆ model's predicted high</span> (recorded from Jun 10 onward). Each diamond shows Δ = predicted − actual (<span class="neg">red = we ran hot</span>, <span class="pos">green = we ran cold</span>, grey = within ±0.5°). A streak of one color means retune the bias. Official settles are whole degrees and can differ ±1° from sensor values.</div>
   </div>
 </div>

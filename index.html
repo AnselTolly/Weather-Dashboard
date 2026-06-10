@@ -98,7 +98,7 @@
 </head>
 <body>
 <header>
-  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.0</span></small></h1>
+  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.1</span></small></h1>
   <div class="controls">
     <select id="citySel"></select>
     <input type="date" id="dateSel">
@@ -116,6 +116,27 @@
 </div>
 
 <div class="grid">
+  <div class="card" style="grid-column:1/-1">
+    <h2>Live Station — <span id="ccSt">…</span> Right Now <span class="ts" id="ccTs"></span></h2>
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="flex:0 0 auto;text-align:center">
+        <div class="bigtemp" id="ccTemp">–</div>
+        <div style="font-size:14px;font-weight:700"><span id="ccTrend" class="dim">─</span> <span class="dim" id="ccPhrase" style="text-transform:uppercase;letter-spacing:1.5px">–</span></div>
+        <div style="margin-top:6px"><span class="chip open">today's max: <b id="ccMax">–</b></span></div>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <div class="chartwrap" style="height:130px"><canvas id="sparkChart"></canvas></div>
+      </div>
+      <div class="stat-row" style="flex:0 1 320px;min-width:200px">
+        <div class="stat" style="min-width:80px"><div class="label">Humidity</div><div class="val" id="ccRh">–</div></div>
+        <div class="stat" style="min-width:80px"><div class="label">Wind</div><div class="val" id="ccWind" style="font-size:16px;padding-top:5px">–</div></div>
+        <div class="stat" style="min-width:80px"><div class="label">Dew point</div><div class="val" id="ccDew">–</div></div>
+        <div class="stat" style="min-width:80px"><div class="label">Pressure</div><div class="val" id="ccPres" style="font-size:16px;padding-top:5px">–</div></div>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">Auto-updates every 2 minutes. The station itself reports about hourly, plus extra readings when conditions change fast — new dots appear the moment they publish.</div>
+  </div>
+
   <div class="card">
     <h2>Should I Buy? — Your App's Buckets <span class="ts" id="usTs"></span></h2>
     <div class="dim" style="margin-bottom:10px">Open the market in your Polymarket app, type each bucket's <b>%</b> into the middle column, and read the verdict. (Your exchange doesn't publish prices publicly, so this column is you — everything else is automatic.)</div>
@@ -217,22 +238,6 @@
     <div class="card">
       <h2>Latest METARs (<span id="stIdLbl"></span>) <span class="ts" id="metarTs"></span></h2>
       <div id="metarBody"><div class="dim">Loading…</div></div>
-    </div>
-
-    <div class="card">
-      <h2>Current Conditions — <span id="ccSt">…</span> <span class="ts" id="ccTs"></span></h2>
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <div style="flex:0 0 auto">
-          <div class="bigtemp" id="ccTemp">–</div>
-          <div class="dim" id="ccPhrase" style="text-align:center;text-transform:uppercase;letter-spacing:1.5px">–</div>
-        </div>
-        <div class="stat-row" style="flex:1;min-width:190px">
-          <div class="stat" style="min-width:80px"><div class="label">Humidity</div><div class="val" id="ccRh">–</div></div>
-          <div class="stat" style="min-width:80px"><div class="label">Wind</div><div class="val" id="ccWind" style="font-size:16px;padding-top:5px">–</div></div>
-          <div class="stat" style="min-width:80px"><div class="label">Dew point</div><div class="val" id="ccDew">–</div></div>
-          <div class="stat" style="min-width:80px"><div class="label">Pressure</div><div class="val" id="ccPres" style="font-size:16px;padding-top:5px">–</div></div>
-        </div>
-      </div>
     </div>
 
     <div class="card">
@@ -366,7 +371,7 @@ async function loadMarket(){
 }
 
 // ---------- charts (HUD theme) ----------
-const charts={trace:null,hourly:null};
+const charts={trace:null,hourly:null,spark:null};
 const CHART_GRID="rgba(46,197,255,.08)", CHART_TICK="#5d7e94";
 if(window.Chart){Chart.defaults.font.family="'Rajdhani',sans-serif";Chart.defaults.color=CHART_TICK;}
 function drawLine(slot,canvasId,labels,data,pointColors,annotateMax){
@@ -408,14 +413,23 @@ async function loadWU(){
     }).join("");
     $('wuTs').textContent=now();
     state.wuMax=max; state.wuObs=obs;
-    // current conditions card
+    // live station bubble
     $('ccTemp').textContent=last.temp+"°";
     $('ccPhrase').textContent=last.wx_phrase||"–";
     $('ccRh').textContent=(last.rh!=null?last.rh+"%":"–");
     $('ccWind').textContent=(last.wdir_cardinal||"")+" "+(last.wspd!=null?last.wspd+"mph":"–");
     $('ccDew').textContent=(last.dewPt!=null?last.dewPt+"°":"–");
     $('ccPres').textContent=(last.pressure!=null?last.pressure+'"':"–");
+    $('ccMax').textContent=max+"°F";
+    const prev=obs.length>1?obs[obs.length-2].temp:last.temp;
+    const tr=$('ccTrend');
+    if(last.temp>prev){tr.textContent="▲ rising";tr.className="warn";}
+    else if(last.temp<prev){tr.textContent="▼ falling";tr.className="pos";}
+    else{tr.textContent="─ steady";tr.className="dim";}
     $('ccTs').textContent=now();
+    // sparkline: last ~12 obs trend
+    const spark=obs.slice(-12);
+    drawLine("spark","sparkChart",spark.map(o=>new Date(o.valid_time_gmt*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})),spark.map(o=>o.temp),null,max);
     // today's temp trace chart with orange dashed line at the running max
     const labels=obs.map(o=>new Date(o.valid_time_gmt*1000).toLocaleTimeString([],{hour:'numeric'}));
     drawLine("trace","traceChart",labels,obs.map(o=>o.temp),null,max);
@@ -869,7 +883,8 @@ renderTrades();
 // evening default: the next tradeable market is tomorrow's
 if(new Date().getHours()>=18){const d=new Date();d.setDate(d.getDate()+1);$('dateSel').value=localISO(d);}
 refreshAll();
-setInterval(refreshAll,5*60*1000); // auto-refresh every 5 min
+setInterval(refreshAll,5*60*1000); // full refresh every 5 min
+setInterval(()=>{loadWU();renderPlan();},2*60*1000); // live station bubble every 2 min
 </script>
 </body>
 </html>

@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tolands Weather Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#04090f; --bg2:#081320;
+    --cyan:#2ec5ff; --cyan-dim:#1b6f96; --cyan-glow:rgba(46,197,255,.45);
+    --line:rgba(46,197,255,.22); --panel:rgba(8,20,34,.85);
+    --orange:#ff7b1c; --orange-glow:rgba(255,123,28,.5); --orange-soft:rgba(255,123,28,.12);
+    --text:#cfe9f7; --dim:#5d7e94; --good:#3dd68c; --bad:#ff5c5c;
+    --mono:'Share Tech Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1100px 600px at 70% -10%, rgba(46,197,255,.08), transparent 60%),
+      radial-gradient(800px 500px at 20% 110%, rgba(255,123,28,.06), transparent 60%),
+      repeating-linear-gradient(0deg, transparent 0 39px, rgba(46,197,255,.03) 39px 40px),
+      repeating-linear-gradient(90deg, transparent 0 39px, rgba(46,197,255,.03) 39px 40px),
+      linear-gradient(170deg,var(--bg) 0%,var(--bg2) 100%);
+    color:var(--text);font-family:'Rajdhani','Segoe UI',sans-serif;font-weight:500;
+    padding:22px;min-height:100vh;
+  }
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:20px}
+  h1{font-size:24px;font-weight:700;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 14px var(--cyan-glow)}
+  h1 .dot{color:var(--orange);text-shadow:0 0 16px var(--orange-glow)}
+  h1 small{font-size:11px;color:var(--dim);font-weight:600;margin-left:10px;letter-spacing:2px;text-shadow:none;text-transform:uppercase}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  select,input,button{
+    background:rgba(8,22,38,.9);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:9px 16px;font-size:14px;font-family:inherit;font-weight:600;outline:none;letter-spacing:1px;
+  }
+  input[type=date]{padding:8px 14px;color-scheme:dark}
+  button{cursor:pointer;transition:all .18s;text-transform:uppercase;font-size:12px}
+  button:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px var(--cyan-glow)}
+  button.primary{background:var(--orange-soft);color:var(--orange);border-color:var(--orange);box-shadow:0 0 10px rgba(255,123,28,.25)}
+  button.primary:hover{box-shadow:0 0 18px var(--orange-glow);color:#ffb578}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;
+    box-shadow:0 0 22px rgba(46,197,255,.06), inset 0 0 40px rgba(46,197,255,.025);
+    position:relative;
+  }
+  .card::before,.card::after{
+    content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+  }
+  .card::before{top:-1px;left:-1px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+  .card::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan)}
+  .card h2{
+    font-size:12px;text-transform:uppercase;letter-spacing:2.5px;color:var(--cyan);
+    margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;font-weight:700;
+    text-shadow:0 0 10px rgba(46,197,255,.3);
+  }
+  .card h2::before{content:"▮ ";color:var(--orange)}
+  .card h2 .ts{font-size:10px;letter-spacing:1px;color:var(--dim);font-weight:600;text-shadow:none}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--dim);font-weight:700;padding:7px 10px;border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px}
+  td{padding:8px 10px;border-bottom:1px solid rgba(46,197,255,.08);font-family:var(--mono);font-size:13px}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right}
+  .bucket-hot td{background:var(--orange-soft);color:#ffc599}
+  .bucket-hot td:first-child{border-left:2px solid var(--orange);font-weight:700;text-shadow:0 0 10px var(--orange-glow)}
+  .bar{height:8px;border-radius:2px;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan) 60%,var(--orange));min-width:4px;box-shadow:0 0 8px rgba(46,197,255,.35)}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap}
+  .stat{flex:1;min-width:92px;background:rgba(5,14,24,.7);border:1px solid var(--line);border-radius:6px;padding:11px 13px}
+  .stat .label{font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;font-weight:700}
+  .stat .val{font-size:22px;font-weight:400;font-family:var(--mono);color:var(--cyan);text-shadow:0 0 10px rgba(46,197,255,.3)}
+  .pos{color:var(--good)!important;text-shadow:0 0 10px rgba(61,214,140,.4)!important}
+  .neg{color:var(--bad)!important;text-shadow:0 0 10px rgba(255,92,92,.4)!important}
+  .warn{color:var(--orange)!important;text-shadow:0 0 12px var(--orange-glow)!important}
+  .chip{display:inline-block;padding:2px 10px;border-radius:3px;font-size:10.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1px solid}
+  .chip.open{background:rgba(46,197,255,.08);color:var(--cyan);border-color:var(--line)}
+  .chip.won{background:rgba(61,214,140,.1);color:var(--good);border-color:rgba(61,214,140,.4)}
+  .chip.lost{background:rgba(255,92,92,.1);color:var(--bad);border-color:rgba(255,92,92,.4)}
+  .err{color:#ffb3b3;font-size:12.5px;font-weight:600;padding:10px 12px;background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.35);border-radius:6px;line-height:1.6}
+  .dim{color:var(--dim);font-size:12.5px;font-weight:600;letter-spacing:.3px}
+  .formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:12px}
+  .formgrid label{font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:1.2px;display:block;margin-bottom:4px;font-weight:700}
+  .formgrid input,.formgrid select{width:100%;border-radius:4px;padding:8px 12px}
+  .formgrid input::placeholder{color:#3a566b}
+  a{color:var(--cyan);text-decoration:none;font-weight:600}
+  a:hover{color:var(--orange);text-shadow:0 0 10px var(--orange-glow)}
+  .footer{color:var(--dim);font-size:11px;margin-top:16px;line-height:1.8;font-weight:600;letter-spacing:.5px}
+  .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:2px 6px;box-shadow:none}
+  .del:hover{color:var(--bad);box-shadow:none}
+  .obs-line{font-family:var(--mono);font-size:12.5px;padding:5px 0;display:flex;justify-content:space-between;border-bottom:1px dashed rgba(46,197,255,.08)}
+  .route{font-size:10px;color:var(--dim);font-weight:700}
+  .bigval input{border-radius:4px}
+  .bigtemp{font-family:var(--mono);font-size:56px;line-height:1;color:var(--orange);text-shadow:0 0 26px var(--orange-glow);text-align:center;padding:6px 10px}
+  .chartwrap{position:relative;height:200px}
+</style>
+</head>
+<body>
+<header>
+  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.0</span></small></h1>
+  <div class="controls">
+    <select id="citySel"></select>
+    <input type="date" id="dateSel">
+    <button onclick="setDay(0)">Today</button>
+    <button onclick="setDay(1)">Tomorrow</button>
+    <button class="primary" onclick="refreshAll()">⟳ Refresh</button>
+    <button onclick="copySnapshot()" title="Copies everything on screen as text — paste it to Claude in Cowork">⧉ Snapshot for Claude</button>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="card" style="grid-column:1/-1;padding:12px 20px">
+    <div id="gameplan" style="display:flex;align-items:center;gap:12px"><span style="color:var(--orange);font-size:18px">▶</span><span class="dim" style="font-size:13.5px;color:var(--text)">Loading game plan…</span></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Should I Buy? — Your App's Buckets <span class="ts" id="usTs"></span></h2>
+    <div class="dim" style="margin-bottom:10px">Open the market in your Polymarket app, type each bucket's <b>%</b> into the middle column, and read the verdict. (Your exchange doesn't publish prices publicly, so this column is you — everything else is automatic.)</div>
+    <div id="usBody"><div class="dim">Loading forecast…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Settlement Watch (Wunderground feed) <span class="ts" id="wuTs"></span></h2>
+    <div class="stat-row" style="margin-bottom:12px">
+      <div class="stat"><div class="label">Max so far today</div><div class="val warn" id="wuMax">–</div></div>
+      <div class="stat"><div class="label">Latest ob</div><div class="val" id="wuLast">–</div></div>
+      <div class="stat"><div class="label">Obs count</div><div class="val" id="wuCount">–</div></div>
+    </div>
+    <div id="wuRecent"></div>
+    <div class="dim" style="margin-top:10px">Max-so-far is a hard floor on the settlement high. The market settles on this feed (whole °F), not NWS.</div>
+  </div>
+
+</div>
+
+<div class="grid">
+  <div class="card" style="grid-column:1/-1">
+    <h2>Model Scoreboard — Are We Getting Smarter? <span class="ts" id="sbTs"></span></h2>
+    <div class="dim" style="margin-bottom:10px">Every day the model's morning estimate is frozen automatically. When the official settlement is known (after ~5 PM ET), type it in — the running error tells us if our +1°F bias needs tuning. This table is the model's report card.</div>
+    <div id="sbBody"></div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1">
+    <h2>My Polymarket Positions — Auto-Sync <span class="ts" id="posTs"></span></h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <input id="walletAddr" placeholder="Paste your wallet address (0x…)" style="flex:1;min-width:280px;border-radius:4px;font-family:var(--mono);font-size:12px">
+      <button class="primary" onclick="saveWallet()">Link wallet</button>
+    </div>
+    <div id="posBody"><div class="dim">Paste your public wallet address and your live positions + fills appear here automatically. Find it on Polymarket: click your profile picture → copy the 0x… address under your username. It's public info — never paste private keys or seed phrases anywhere, including here.</div></div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1">
+    <h2>Trade Log &amp; P/L</h2>
+    <div class="stat-row" style="margin-bottom:16px">
+      <div class="stat bigval"><div class="label">Bankroll start</div><div class="val">$<input id="bankroll" type="number" value="500" style="width:84px;font-size:17px;padding:3px 8px" onchange="saveBankroll()"></div></div>
+      <div class="stat"><div class="label">Realized P/L</div><div class="val" id="plTotal">$0.00</div></div>
+      <div class="stat"><div class="label">Open risk</div><div class="val" id="openRisk">$0.00</div></div>
+      <div class="stat"><div class="label">Record</div><div class="val" id="record">0W–0L</div></div>
+      <div class="stat"><div class="label">Win rate</div><div class="val" id="winRate">–</div></div>
+      <div class="stat"><div class="label">Current bankroll</div><div class="val" id="bankNow">$500.00</div></div>
+    </div>
+    <div class="formgrid">
+      <div><label>Date</label><input type="date" id="tDate"></div>
+      <div><label>City</label><select id="tCity"></select></div>
+      <div><label>Bucket</label><input id="tBucket" placeholder="86-87°F"></div>
+      <div><label>Side</label><select id="tSide"><option>YES</option><option>NO</option></select></div>
+      <div><label>Entry ¢</label><input id="tPrice" type="number" min="0.1" max="99.9" step="0.1" placeholder="34"></div>
+      <div><label>Shares</label><input id="tShares" type="number" min="1" step="1" placeholder="100"></div>
+      <div><label>Thesis (short)</label><input id="tNote" placeholder="TWC says 87, clouds + E wind"></div>
+      <div style="display:flex;align-items:flex-end"><button class="primary" style="width:100%" onclick="addTrade()">+ Log trade</button></div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Date</th><th>Market</th><th>Bucket</th><th>Side</th><th class="num">Entry</th><th class="num">Shares</th><th class="num">Cost</th><th>Status</th><th class="num">P/L</th><th>Thesis</th><th></th></tr></thead>
+      <tbody id="tradeRows"></tbody>
+    </table>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px">
+      <button onclick="exportTrades()">Export JSON</button>
+      <button onclick="document.getElementById('importFile').click()">Import JSON</button>
+      <input type="file" id="importFile" style="display:none" accept=".json" onchange="importTrades(event)">
+    </div>
+  </div>
+</div>
+
+<details id="diag" style="margin-bottom:16px">
+  <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--panel);border:1px solid var(--line);border-radius:8px">
+    <span style="color:var(--cyan);font-size:12px;letter-spacing:2px;font-weight:700">▸ DATA &amp; DIAGNOSTICS</span>
+    <span id="diagPill" class="chip open">checking…</span>
+    <span class="dim" style="font-size:11px">charts, raw feeds, integrity tests — opens automatically if something fails</span>
+  </summary>
+  <div style="height:14px"></div>
+
+  <div class="grid">
+    <div class="card" style="grid-column:1/-1">
+      <h2>Global Market Sentiment (reference only — not your tradeable prices) — <span id="mktTitle">…</span> <span class="ts" id="mktTs"></span></h2>
+      <div id="mktBody"><div class="dim">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>System Check — Data Integrity <span class="ts" id="sysTs"></span></h2>
+      <div id="sysBody"><div class="dim">Runs automatically after each refresh…</div></div>
+      <button style="margin-top:10px" onclick="runChecks()">▶ Run checks now</button>
+      <div class="dim" style="margin-top:8px">Cross-verifies every feed against an independent source. A FAIL means don't trust that panel until it clears.</div>
+    </div>
+
+    <div class="card">
+      <h2>Forecast — TWC / Wunderground family <span class="ts" id="fcTs"></span></h2>
+      <div id="fcBody"><div class="dim">Loading…</div></div>
+      <div class="dim" style="margin-top:10px">TWC = same company as the settlement source. Onshore wind + clouds cap the high; sun + westerly push it up.</div>
+    </div>
+
+    <div class="card">
+      <h2>Latest METARs (<span id="stIdLbl"></span>) <span class="ts" id="metarTs"></span></h2>
+      <div id="metarBody"><div class="dim">Loading…</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Current Conditions — <span id="ccSt">…</span> <span class="ts" id="ccTs"></span></h2>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="flex:0 0 auto">
+          <div class="bigtemp" id="ccTemp">–</div>
+          <div class="dim" id="ccPhrase" style="text-align:center;text-transform:uppercase;letter-spacing:1.5px">–</div>
+        </div>
+        <div class="stat-row" style="flex:1;min-width:190px">
+          <div class="stat" style="min-width:80px"><div class="label">Humidity</div><div class="val" id="ccRh">–</div></div>
+          <div class="stat" style="min-width:80px"><div class="label">Wind</div><div class="val" id="ccWind" style="font-size:16px;padding-top:5px">–</div></div>
+          <div class="stat" style="min-width:80px"><div class="label">Dew point</div><div class="val" id="ccDew">–</div></div>
+          <div class="stat" style="min-width:80px"><div class="label">Pressure</div><div class="val" id="ccPres" style="font-size:16px;padding-top:5px">–</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Today's Temp Trace</h2>
+      <div class="chartwrap"><canvas id="traceChart"></canvas></div>
+      <div class="dim" style="margin-top:8px">Observed temps at the station today. The peak of this line is what settles the market.</div>
+    </div>
+
+    <div class="card">
+      <h2>48H Forecast Curve</h2>
+      <div class="chartwrap"><canvas id="hourlyChart"></canvas></div>
+      <div class="dim" style="margin-top:8px" id="hourlyNote">Hourly TWC forecast — orange points are the selected market date.</div>
+    </div>
+  </div>
+</details>
+
+<div class="footer">
+  Data: Polymarket Gamma API (cached — verify live book on Polymarket before ordering) · aviationweather.gov METARs · weather.com obs/forecast (Wunderground settlement family). If a card shows a red error, hit ⟳ — the dashboard auto-retries through relay routes.<br>
+  Trades live in this browser's localStorage — Export JSON periodically as backup. Information, not financial advice. Prediction markets can lose your entire stake.
+</div>
+
+<script>
+const CITIES = {
+  miami:{label:"Miami (KMIA)", slug:"miami", metar:"KMIA", wu:"KMIA:9:US", geo:"25.79,-80.32", wuPage:"https://www.wunderground.com/history/daily/us/fl/miami/KMIA"},
+  nyc:{label:"NYC (KLGA)", slug:"nyc", metar:"KLGA", wu:"KLGA:9:US", geo:"40.7772,-73.8726", wuPage:"https://www.wunderground.com/history/daily/us/ny/new-york-city/KLGA"}
+};
+const TWC_KEY="e1f10a1e78da46f5b10a1e78da96f525";
+const $=id=>document.getElementById(id);
+const fmt$=v=>(v<0?"-$":"$")+Math.abs(v).toFixed(2);
+const cToF=c=>Math.round(c*1.8+32);
+const now=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+// ---------- resilient fetch: direct, then 4 independent CORS relays ----------
+function withTimeout(ms){
+  if(typeof AbortSignal!=="undefined"&&AbortSignal.timeout)return AbortSignal.timeout(ms);
+  const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal;
+}
+async function fetchJSON(url){
+  const enc=encodeURIComponent(url);
+  const routes=[
+    {u:url, name:"direct", wrap:null},
+    {u:"https://api.codetabs.com/v1/proxy?quest="+enc, name:"codetabs", wrap:null},
+    {u:"https://api.allorigins.win/raw?url="+enc, name:"allorigins-raw", wrap:null},
+    {u:"https://corsproxy.io/?url="+enc, name:"corsproxy", wrap:null},
+    {u:"https://api.allorigins.win/get?url="+enc, name:"allorigins-get", wrap:"contents"}
+  ];
+  const fails=[];
+  for(const r of routes){
+    try{
+      const resp=await fetch(r.u,{signal:withTimeout(15000)});
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      let data=await resp.json();
+      if(r.wrap){ data=JSON.parse(data[r.wrap]); } // unwrap allorigins-get envelope
+      fetchJSON.lastRoute=r.name;
+      return data;
+    }catch(e){fails.push(r.name+": "+(e.name==="AbortError"?"timeout":e.message));}
+  }
+  throw new Error(fails.join(" | "));
+}
+function errBox(label,e){
+  const fileHint=location.protocol==="file:"?"<br><b>Note:</b> page is running from a local file (file://), which some APIs block — mention this to Claude.":"";
+  return `<div class="err">${label} failed.<br><span style="font-weight:600;font-size:11px">${e.message}</span>${fileHint}<br>Hit ⟳ Refresh to retry. If it keeps failing, copy this whole box to Claude.</div>`;
+}
+
+// ---------- init controls ----------
+for(const [k,c] of Object.entries(CITIES)){
+  $('citySel').add(new Option(c.label,k));
+  $('tCity').add(new Option(c.label.split(' ')[0],k));
+}
+function localISO(d){const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}
+function setDay(offset){const d=new Date();d.setDate(d.getDate()+offset);$('dateSel').value=localISO(d);refreshAll();}
+$('dateSel').value=localISO(new Date());
+$('tDate').value=localISO(new Date());
+$('citySel').onchange=refreshAll; $('dateSel').onchange=refreshAll;
+
+function slugFor(cityKey,dateStr){
+  const months=["january","february","march","april","may","june","july","august","september","october","november","december"];
+  const [y,m,d]=dateStr.split("-").map(Number);
+  return `highest-temperature-in-${CITIES[cityKey].slug}-on-${months[m-1]}-${d}-${y}`;
+}
+
+// ---------- shared state (lets panels cross-check each other) ----------
+const state={rows:null,fav:null,twcHigh:null,omHigh:null,wuMax:null,metars:null};
+
+function bucketContains(lbl,temp){
+  if(temp==null)return false;
+  let m=lbl.match(/^(\d+)-(\d+)/); if(m)return temp>=+m[1]&&temp<=+m[2];
+  m=lbl.match(/^(\d+)°F or below/); if(m)return temp<=+m[1];
+  m=lbl.match(/^(\d+)°F or higher/); if(m)return temp>=+m[1];
+  return false;
+}
+
+// ---------- market panel ----------
+async function loadMarket(){
+  const city=$('citySel').value, date=$('dateSel').value, slug=slugFor(city,date);
+  $('mktTitle').textContent=`${CITIES[city].label.split(' ')[0]} · ${date}`;
+  $('mktBody').innerHTML='<div class="dim">Loading…</div>';
+  try{
+    const evs=await fetchJSON(`https://gamma-api.polymarket.com/events?slug=${slug}`);
+    const ev=evs[0];
+    if(!ev){$('mktBody').innerHTML=`<div class="err">No market listed for this date yet (slug: ${slug}).</div>`;state.rows=null;return;}
+    const rows=ev.markets.map(m=>{
+      const q=m.question||"";
+      const lbl=(q.match(/(\d+°F or below|\d+°F or higher|between \d+-\d+°F)/)||[q])[0].replace("between ","");
+      const lo=q.includes("below")?-999:(q.includes("higher")?998:parseInt((q.match(/(\d+)-\d+/)||[])[1]||999));
+      const bid=+m.bestBid||0, ask=+m.bestAsk||0, mid=(bid+ask)/2;
+      let token=null; try{token=JSON.parse(m.clobTokenIds||"[]")[0]||null;}catch(_){}
+      return{lbl,lo,bid,ask,mid,token};
+    }).sort((a,b)=>a.lo-b.lo);
+    const best=Math.max(...rows.map(r=>r.mid));
+    state.rows=rows; state.fav=rows.find(r=>r.mid===best);
+    let html='<table><thead><tr><th>Bucket</th><th class="num">Bid</th><th class="num">Ask</th><th class="num">Implied %</th><th style="width:26%">Prob</th></tr></thead><tbody>';
+    for(const r of rows){
+      const isFav=r.mid===best, isModel=bucketContains(r.lbl,state.twcHigh);
+      const tag=isModel?' <span style="color:var(--cyan);font-size:10px;letter-spacing:1px">◈ MODEL</span>':'';
+      html+=`<tr class="${isFav?'bucket-hot':''}" ${isModel&&!isFav?'style="outline:1px solid var(--cyan-dim)"':''}><td>${r.lbl}${tag}</td><td class="num">${(r.bid*100).toFixed(1)}¢</td><td class="num">${(r.ask*100).toFixed(1)}¢</td><td class="num">${(r.mid*100).toFixed(1)}%</td><td><div class="bar" style="width:${Math.max(3,r.mid*100)}%"></div></td></tr>`;
+    }
+    html+='</tbody></table>';
+    // model-vs-market verdict
+    if(state.twcHigh!=null){
+      const modelB=rows.find(r=>bucketContains(r.lbl,state.twcHigh));
+      if(modelB&&state.fav){
+        html+= modelB===state.fav
+          ?`<div class="dim" style="margin-top:8px">◈ Model (TWC high ${state.twcHigh}°F) and market favorite <b>agree</b> on ${modelB.lbl} — no obvious edge, fairly priced.</div>`
+          :`<div style="margin-top:8px;padding:8px 10px;border:1px solid var(--orange);border-radius:6px;background:var(--orange-soft)"><b class="warn">⚡ DISAGREEMENT:</b> <span class="dim" style="color:var(--text)">TWC high ${state.twcHigh}°F points to <b>${modelB.lbl}</b> (ask ${(modelB.ask*100).toFixed(0)}¢) but market favors <b>${state.fav.lbl}</b>. Potential value in ${modelB.lbl} — verify with System Check + live book first.</span></div>`;
+      }
+    }
+    html+=`<div class="dim" style="margin-top:10px"><a href="https://polymarket.com/event/${slug}" target="_blank">Open on Polymarket ↗</a> · <a href="${CITIES[city].wuPage}" target="_blank">Settlement page ↗</a> <span class="route">via ${fetchJSON.lastRoute}</span></div>`;
+    $('mktBody').innerHTML=html; $('mktTs').textContent=now();
+  }catch(e){$('mktBody').innerHTML=errBox("Market fetch",e);}
+}
+
+// ---------- charts (HUD theme) ----------
+const charts={trace:null,hourly:null};
+const CHART_GRID="rgba(46,197,255,.08)", CHART_TICK="#5d7e94";
+if(window.Chart){Chart.defaults.font.family="'Rajdhani',sans-serif";Chart.defaults.color=CHART_TICK;}
+function drawLine(slot,canvasId,labels,data,pointColors,annotateMax){
+  if(!window.Chart)return;
+  if(charts[slot])charts[slot].destroy();
+  const ctx=$(canvasId).getContext("2d");
+  const g=ctx.createLinearGradient(0,0,0,200);
+  g.addColorStop(0,"rgba(46,197,255,.25)");g.addColorStop(1,"rgba(46,197,255,0)");
+  const dsets=[{data,borderColor:"#2ec5ff",backgroundColor:g,fill:true,tension:.35,borderWidth:2,
+    pointRadius:pointColors?3:0,pointBackgroundColor:pointColors||"#2ec5ff",pointBorderWidth:0}];
+  if(annotateMax!=null){
+    dsets.push({data:labels.map(()=>annotateMax),borderColor:"#ff7b1c",borderDash:[6,5],borderWidth:1.5,pointRadius:0,fill:false});
+  }
+  charts[slot]=new Chart(ctx,{type:"line",
+    data:{labels,datasets:dsets},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+"°F"}}},
+      scales:{x:{grid:{color:CHART_GRID},ticks:{maxTicksLimit:9,maxRotation:0}},
+              y:{grid:{color:CHART_GRID},ticks:{callback:v=>v+"°"}}}}});
+}
+
+// ---------- settlement watch + current conditions + trace chart ----------
+async function loadWU(){
+  const c=CITIES[$('citySel').value];
+  $('ccSt').textContent=c.metar;
+  const today=localISO(new Date()).replaceAll("-","");
+  try{
+    const data=await fetchJSON(`https://api.weather.com/v1/location/${c.wu}/observations/historical.json?apiKey=${TWC_KEY}&units=e&startDate=${today}`);
+    const obs=data.observations||[];
+    if(!obs.length){$('wuMax').textContent="–";$('wuRecent').innerHTML='<div class="dim">No obs yet today.</div>';return;}
+    const max=Math.max(...obs.map(o=>o.temp));
+    const last=obs[obs.length-1];
+    $('wuMax').textContent=max+"°F";
+    $('wuLast').textContent=last.temp+"°F";
+    $('wuCount').textContent=obs.length;
+    $('wuRecent').innerHTML=obs.slice(-5).reverse().map(o=>{
+      const t=new Date(o.valid_time_gmt*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      return `<div class="obs-line"><span>${t}</span><span><b>${o.temp}°F</b> · ${o.wx_phrase||""} · ${o.wdir_cardinal||""} ${o.wspd||0}mph</span></div>`;
+    }).join("");
+    $('wuTs').textContent=now();
+    state.wuMax=max; state.wuObs=obs;
+    // current conditions card
+    $('ccTemp').textContent=last.temp+"°";
+    $('ccPhrase').textContent=last.wx_phrase||"–";
+    $('ccRh').textContent=(last.rh!=null?last.rh+"%":"–");
+    $('ccWind').textContent=(last.wdir_cardinal||"")+" "+(last.wspd!=null?last.wspd+"mph":"–");
+    $('ccDew').textContent=(last.dewPt!=null?last.dewPt+"°":"–");
+    $('ccPres').textContent=(last.pressure!=null?last.pressure+'"':"–");
+    $('ccTs').textContent=now();
+    // today's temp trace chart with orange dashed line at the running max
+    const labels=obs.map(o=>new Date(o.valid_time_gmt*1000).toLocaleTimeString([],{hour:'numeric'}));
+    drawLine("trace","traceChart",labels,obs.map(o=>o.temp),null,max);
+    // peak detection: last 3 obs all clear of the max + past 2 PM ET = heating likely done
+    const etH=+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',hour12:false}).format(new Date());
+    const last3=obs.slice(-3).map(o=>o.temp);
+    if(etH>=14&&last3.length===3&&last3.every(t=>t<=max-2)){
+      const peakOb=obs.find(o=>o.temp===max);
+      const pt=new Date(peakOb.valid_time_gmt*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+      $('wuRecent').insertAdjacentHTML('afterbegin',`<div style="padding:6px 10px;margin-bottom:6px;border:1px solid var(--orange);border-radius:6px;background:var(--orange-soft)"><b class="warn">⚑ LIKELY PEAKED:</b> <span style="color:var(--text)">${max}°F at ${pt} — temps falling. Est. official settle: ${max}-${max+1}°F.</span></div>`);
+    }
+  }catch(e){$('wuRecent').innerHTML=errBox("Settlement feed",e);}
+}
+
+// ---------- 48h hourly forecast chart ----------
+async function loadHourly(){
+  const c=CITIES[$('citySel').value], date=$('dateSel').value;
+  try{
+    const f=await fetchJSON(`https://api.weather.com/v3/wx/forecast/hourly/2day?apiKey=${TWC_KEY}&geocode=${c.geo}&units=e&language=en-US&format=json`);
+    const labels=f.validTimeLocal.map(t=>{
+      const d=new Date(t); const h=d.toLocaleTimeString([],{hour:'numeric'});
+      return d.getHours()===0?d.toLocaleDateString([],{weekday:'short'}):h;
+    });
+    const ptColors=f.validTimeLocal.map(t=>t.startsWith(date)?"#ff7b1c":"rgba(46,197,255,.55)");
+    const sel=f.temperature.filter((_,i)=>f.validTimeLocal[i].startsWith(date));
+    drawLine("hourly","hourlyChart",labels,f.temperature,ptColors,null);
+    $('hourlyNote').innerHTML=sel.length
+      ?`Orange points = selected market date. Forecast peak that day: <b class="warn">${Math.max(...sel)}°F</b>`
+      :"Selected date is beyond the 48h hourly window — showing next 48h.";
+  }catch(e){$('hourlyNote').innerHTML=errBox("Hourly forecast",e);}
+}
+
+// ---------- forecast ----------
+async function loadForecast(){
+  const c=CITIES[$('citySel').value], date=$('dateSel').value;
+  try{
+    const f=await fetchJSON(`https://api.weather.com/v3/wx/forecast/daily/5day?apiKey=${TWC_KEY}&geocode=${c.geo}&units=e&language=en-US&format=json`);
+    const idx=f.validTimeLocal.findIndex(t=>t.startsWith(date));
+    if(idx<0){$('fcBody').innerHTML='<div class="err">Selected date is beyond the 5-day forecast window.</div>';return;}
+    const hi=f.calendarDayTemperatureMax[idx]??f.temperatureMax[idx], lo=f.calendarDayTemperatureMin[idx];
+    state.twcHigh=hi;
+    const dp=f.daypart[0];
+    let detail="",cloud=null,wind="",pop=null;
+    for(let i=0;i<dp.dayOrNight.length;i++){
+      if(dp.dayOrNight[i]==="D"&&(idx===0?i<=1:Math.floor((i+1)/2)===idx)){
+        detail=dp.narrative[i]||"";
+        cloud=dp.cloudCover[i]; wind=(dp.windDirectionCardinal[i]||"")+" "+(dp.windSpeed[i]||"")+"mph"; pop=dp.precipChance[i];
+        break;
+      }
+    }
+    $('fcBody').innerHTML=`
+      <div class="stat-row" style="margin-bottom:12px">
+        <div class="stat"><div class="label">TWC high</div><div class="val warn">${hi}°F</div></div>
+        <div class="stat"><div class="label">Low</div><div class="val">${lo}°F</div></div>
+        <div class="stat"><div class="label">Clouds</div><div class="val">${cloud!=null?cloud+"%":"–"}</div></div>
+        <div class="stat"><div class="label">Wind</div><div class="val" style="font-size:14px;padding-top:7px">${wind||"–"}</div></div>
+        <div class="stat"><div class="label">Precip</div><div class="val">${pop!=null?pop+"%":"–"}</div></div>
+      </div>
+      <div class="dim">${detail}</div>`;
+    $('fcTs').textContent=now();
+  }catch(e){$('fcBody').innerHTML=errBox("Forecast fetch",e);}
+}
+
+// ---------- METARs (primary: NWS api.weather.gov; fallback: settlement feed) ----------
+async function loadMetars(){
+  const c=CITIES[$('citySel').value];
+  $('stIdLbl').textContent=c.metar;
+  let norm=[], src="NWS";
+  try{
+    const dayStart=new Date(); dayStart.setHours(0,0,0,0); // full local day, not just recent obs
+    const d=await fetchJSON(`https://api.weather.gov/stations/${c.metar}/observations?start=${encodeURIComponent(dayStart.toISOString())}&limit=500`);
+    norm=(d.features||[]).map(f=>{
+      const p=f.properties||{};
+      const qc=p.temperature?p.temperature.qualityControl:null;
+      return {t:new Date(p.timestamp), c:p.temperature?p.temperature.value:null,
+        qcOK:!qc||["V","C","S"].includes(qc), // drop known-bad sensor readings
+        raw:p.rawMessage||"", wd:p.windDirection?p.windDirection.value:null,
+        ws:(p.windSpeed&&p.windSpeed.value!=null)?Math.round(p.windSpeed.value*0.621):null};
+    }).filter(o=>o.c!=null&&o.qcOK);
+    norm.sort((a,b)=>b.t-a.t); // newest first regardless of API order
+  }catch(e){ norm=[]; }
+  if(!norm.length){
+    // fallback: derive obs from the settlement feed (same numbers Wunderground displays)
+    src="settlement feed";
+    try{
+      let obs=state.wuObs;
+      if(!obs){
+        const today=localISO(new Date()).replaceAll("-","");
+        obs=(await fetchJSON(`https://api.weather.com/v1/location/${c.wu}/observations/historical.json?apiKey=${TWC_KEY}&units=e&startDate=${today}`)).observations||[];
+      }
+      norm=obs.slice().reverse().map(o=>({t:new Date(o.valid_time_gmt*1000), c:(o.temp-32)/1.8, raw:"", wd:o.wdir, ws:o.wspd}));
+    }catch(e){$('metarBody').innerHTML=errBox("METAR fetch (both sources)",e);return;}
+  }
+  if(!norm.length){$('metarBody').innerHTML='<div class="dim">No recent observations.</div>';return;}
+  state.metars=norm; state.metarSrc=src;
+  $('metarBody').innerHTML=norm.slice(0,7).map(m=>{
+    const t=m.t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const spec=m.raw.startsWith("SPECI")?' <span class="warn" style="font-weight:800">SPECI</span>':"";
+    return `<div class="obs-line"><span>${t}${spec}</span><span><b>${cToF(m.c)}°F</b> (${m.c.toFixed(1)}°C) · ${m.wd!=null?m.wd+"°":""}${m.ws!=null?" @ "+m.ws+"mph":""}</span></div>`;
+  }).join("")+`<div class="route" style="margin-top:6px">source: ${src}</div>`;
+  $('metarTs').textContent=now();
+}
+
+// ---------- trade log ----------
+let trades=JSON.parse(localStorage.getItem("wxTrades")||"[]");
+$('bankroll').value=localStorage.getItem("wxBankroll")||500;
+function saveTrades(){localStorage.setItem("wxTrades",JSON.stringify(trades));renderTrades();}
+function saveBankroll(){localStorage.setItem("wxBankroll",$('bankroll').value);renderTrades();}
+function addTrade(){
+  const p=+$('tPrice').value, s=+$('tShares').value;
+  if(!p||!s||!$('tBucket').value){alert("Need bucket, entry price and shares.");return;}
+  trades.push({id:Date.now(),date:$('tDate').value,city:$('tCity').value,bucket:$('tBucket').value,
+    side:$('tSide').value,price:p,shares:s,status:"open",note:$('tNote').value});
+  $('tBucket').value='';$('tPrice').value='';$('tShares').value='';$('tNote').value='';
+  saveTrades();
+}
+function setStatus(id,st){const t=trades.find(t=>t.id===id);t.status=st;saveTrades();}
+function delTrade(id){if(confirm("Delete this trade?")){trades=trades.filter(t=>t.id!==id);saveTrades();}}
+function pl(t){
+  const cost=t.price/100*t.shares;
+  if(t.status==="won")return t.shares-cost;
+  if(t.status==="lost")return -cost;
+  if(t.status==="sold")return t.shares*(t.exitPrice||0)/100-cost;
+  return 0;
+}
+function sellTrade(id){
+  const t=trades.find(t=>t.id===id);
+  const v=prompt("Exit price in cents (effective — payout ÷ shares):");
+  if(v===null||isNaN(+v))return;
+  t.status="sold";t.exitPrice=+v;saveTrades();
+}
+function renderTrades(){
+  const rows=trades.slice().sort((a,b)=>b.id-a.id).map(t=>{
+    const cost=t.price/100*t.shares, p=pl(t);
+    const plCell=t.status==="open"?'<span class="dim">–</span>':`<span class="${p>=0?'pos':'neg'}" style="font-weight:800">${fmt$(p)}</span>`;
+    const act=t.status==="open"
+      ?`<button class="del" title="Mark won" onclick="setStatus(${t.id},'won')" style="color:var(--good)">✓</button><button class="del" title="Sold early" onclick="sellTrade(${t.id})" style="color:var(--cyan)">⇆</button><button class="del" title="Mark lost" onclick="setStatus(${t.id},'lost')" style="color:var(--bad)">✗</button>`
+      :`<button class="del" title="Reopen" onclick="setStatus(${t.id},'open')">↺</button>`;
+    return `<tr><td>${t.date}</td><td>${t.city.toUpperCase()}</td><td>${t.bucket}</td><td>${t.side}</td>
+      <td class="num">${t.price}¢</td><td class="num">${t.shares}</td><td class="num">${fmt$(cost)}</td>
+      <td><span class="chip ${t.status==='sold'?(pl(t)>=0?'won':'lost'):t.status}">${t.status==='sold'?`sold ${t.exitPrice}¢`:t.status}</span></td><td class="num">${plCell}</td>
+      <td class="dim" style="font-family:inherit;font-size:12px">${t.note||""}</td>
+      <td>${act}<button class="del" onclick="delTrade(${t.id})">🗑</button></td></tr>`;
+  }).join("");
+  $('tradeRows').innerHTML=rows||'<tr><td colspan="11" class="dim" style="text-align:center;padding:20px">No trades logged yet. Log every position — the record is the system.</td></tr>';
+  const realized=trades.reduce((a,t)=>a+pl(t),0);
+  const openRisk=trades.filter(t=>t.status==="open").reduce((a,t)=>a+t.price/100*t.shares,0);
+  const w=trades.filter(t=>t.status==="won"||(t.status==="sold"&&pl(t)>=0)).length, l=trades.filter(t=>t.status==="lost"||(t.status==="sold"&&pl(t)<0)).length;
+  $('plTotal').textContent=fmt$(realized); $('plTotal').className="val "+(realized>=0?"pos":"neg");
+  $('openRisk').textContent=fmt$(openRisk);
+  $('record').textContent=`${w}W–${l}L`;
+  $('winRate').textContent=(w+l)?Math.round(w/(w+l)*100)+"%":"–";
+  const bank=+$('bankroll').value+realized;
+  $('bankNow').textContent=fmt$(bank); $('bankNow').className="val "+(bank>=+$('bankroll').value?"pos":"neg");
+}
+function exportTrades(){
+  const blob=new Blob([JSON.stringify({bankroll:$('bankroll').value,trades},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wx-trades-"+localISO(new Date())+".json";a.click();
+}
+function importTrades(ev){
+  const f=ev.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);trades=d.trades||d;if(d.bankroll)$('bankroll').value=d.bankroll;saveTrades();saveBankroll();}catch(e){alert("Invalid JSON");}};
+  rd.readAsText(f);
+}
+
+// ---------- system check: automated fact-checking of every feed ----------
+async function runChecks(){
+  $('sysBody').innerHTML='<div class="dim">Running cross-checks…</div>';
+  const out=[];
+  const add=(status,name,detail)=>out.push({status,name,detail});
+
+  // CHECK 1: market prices internally consistent (bucket mids should sum to ~$1.00)
+  if(state.rows&&state.rows.length){
+    const sum=state.rows.reduce((a,r)=>a+r.mid,0);
+    add(sum>0.93&&sum<1.09?"PASS":"WARN","MARKET MATH",`Bucket mids sum to $${sum.toFixed(2)} (healthy ≈ $1.00)`);
+  }else add("WARN","MARKET MATH","No market data loaded to verify");
+
+  // CHECK 2: settlement feed vs independent METAR source (today's max)
+  if(state.wuMax!=null&&state.metars){
+    if(state.metarSrc!=="NWS"){
+      add("WARN","OBS CROSS-CHECK","NWS source unreachable this refresh — obs panel is mirroring the settlement feed, so no independent verification right now");
+    }else{
+      const today=localISO(new Date());
+      const todayObs=state.metars.filter(m=>m.c!=null&&localISO(m.t)===today);
+      // only compare the window BOTH feeds have reported (intraday feeds lag differently)
+      const wuLatest=state.wuObs?Math.max(...state.wuObs.map(o=>o.valid_time_gmt*1000)):0;
+      const nwsLatest=todayObs.length?Math.max(...todayObs.map(m=>m.t.getTime())):0;
+      const cutoff=Math.min(wuLatest,nwsLatest);
+      const common=todayObs.filter(m=>m.t.getTime()<=cutoff);
+      // settlement displays official METAR/SPECI only — exclude 5-min sensor blips when possible
+      let pool=common.filter(m=>m.raw&&/^(METAR|SPECI)/.test(m.raw));
+      const usingMetarsOnly=pool.length>=3;
+      if(!usingMetarsOnly)pool=common;
+      if(pool.length&&state.wuObs){
+        const wuCommonMax=Math.max(...state.wuObs.filter(o=>o.valid_time_gmt*1000<=cutoff).map(o=>o.temp));
+        const mmax=Math.max(...pool.map(m=>cToF(m.c))), diff=Math.abs(mmax-wuCommonMax);
+        const fmtT=d=>new Date(d).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        const win=`[${pool.length} ${usingMetarsOnly?"METARs":"obs"} to ${fmtT(cutoff)}]`;
+        // is the market day still in progress? (both cities are Eastern time)
+        const etHour=+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',hour12:false}).format(new Date());
+        const dayDone=etHour>=19;
+        const status=diff<=1?"PASS":(dayDone?"FAIL":"WARN");
+        const note=diff<=1?", agreement":(dayDone?" — investigate before trading":" — intraday drift, feeds update at different speeds; recheck after the 4-5 PM ET peak");
+        add(status,"OBS CROSS-CHECK",`NWS max ${mmax}°F vs settlement feed ${wuCommonMax}°F over the same window ${win} (Δ${diff}°F${note})`);
+      }else add("WARN","OBS CROSS-CHECK","Not enough overlapping same-day obs to compare yet");
+    }
+  }else add("WARN","OBS CROSS-CHECK","Missing obs data — refresh first");
+
+  // CHECK 3: TWC forecast vs independent weather model (Open-Meteo)
+  try{
+    const c=CITIES[$('citySel').value], [lat,lon]=c.geo.split(",");
+    const om=await fetchJSON(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max&temperature_unit=fahrenheit&timezone=auto&forecast_days=3`);
+    const i=om.daily.time.indexOf($('dateSel').value);
+    if(i>=0&&state.twcHigh!=null){
+      const omHigh=Math.round(om.daily.temperature_2m_max[i]), diff=Math.abs(omHigh-state.twcHigh);
+      state.omHigh=omHigh;
+      add(diff<=2?"PASS":"WARN","FORECAST X-SOURCE",`Independent model high ${omHigh}°F vs TWC ${state.twcHigh}°F (Δ${diff}°F${diff>2?" — models disagree, uncertain day, size down":""})`);
+    }else add("WARN","FORECAST X-SOURCE","Selected date outside comparison window");
+  }catch(e){add("WARN","FORECAST X-SOURCE","Open-Meteo unreachable: "+e.message);}
+
+  // CHECK 4: dashboard's cached price vs live order book (leading bucket)
+  try{
+    if(state.fav&&state.fav.token){
+      const book=await fetchJSON("https://clob.polymarket.com/book?token_id="+state.fav.token);
+      const bb=book.bids&&book.bids.length?+book.bids[book.bids.length-1].price:null;
+      const ba=book.asks&&book.asks.length?+book.asks[book.asks.length-1].price:null;
+      if(bb!=null&&ba!=null){
+        const liveMid=(bb+ba)/2, diff=Math.abs(liveMid-state.fav.mid);
+        add(diff<=0.05?"PASS":"WARN","PRICE FRESHNESS",`${state.fav.lbl}: dashboard ${(state.fav.mid*100).toFixed(0)}¢ vs live book ${(liveMid*100).toFixed(0)}¢ (Δ${(diff*100).toFixed(0)}¢${diff>0.05?" — dashboard is stale, trust the live book":""})`);
+      }else add("WARN","PRICE FRESHNESS","Live book empty for leading bucket");
+    }else add("WARN","PRICE FRESHNESS","No leading bucket/token to verify");
+  }catch(e){add("WARN","PRICE FRESHNESS","CLOB unreachable: "+e.message);}
+
+  // status pill on the diagnostics drawer
+  const nFail=out.filter(o=>o.status==="FAIL").length, nWarn=out.filter(o=>o.status==="WARN").length;
+  const pill=$('diagPill');
+  if(pill){
+    if(nFail){pill.className="chip lost";pill.textContent=`${nFail} FAIL`;$('diag').open=true;}
+    else if(nWarn){pill.className="chip open";pill.textContent=`${nWarn} warn — ok`;}
+    else{pill.className="chip won";pill.textContent="all checks pass";}
+  }
+  const cls={PASS:"won",WARN:"open",FAIL:"lost"};
+  $('sysBody').innerHTML=out.map(o=>
+    `<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed rgba(46,197,255,.08)">
+      <span class="chip ${cls[o.status]}" style="flex:0 0 auto">${o.status}</span>
+      <div><b style="font-size:11px;letter-spacing:1.5px;color:var(--cyan)">${o.name}</b><div class="dim">${o.detail}</div></div>
+    </div>`).join("");
+  $('sysTs').textContent=now();
+}
+
+// ---------- wallet auto-sync (read-only, public on-chain data) ----------
+let wallet=localStorage.getItem("wxWallet")||"";
+$('walletAddr').value=wallet;
+function saveWallet(){
+  const v=$('walletAddr').value.trim();
+  if(v&&!/^0x[a-fA-F0-9]{40}$/.test(v)){alert("That doesn't look like a wallet address (should be 0x + 40 characters). Never paste private keys or seed phrases!");return;}
+  wallet=v;localStorage.setItem("wxWallet",wallet);loadPositions();
+}
+async function loadPositions(){
+  if(!wallet)return;
+  try{
+    const [pos,fills]=await Promise.all([
+      fetchJSON(`https://data-api.polymarket.com/positions?user=${wallet}&limit=50`),
+      fetchJSON(`https://data-api.polymarket.com/trades?user=${wallet}&limit=12`)
+    ]);
+    let html="";
+    if(pos&&pos.length){
+      let totCost=0,totNow=0;
+      html+='<table><thead><tr><th>Market</th><th>Side</th><th class="num">Shares</th><th class="num">Avg</th><th class="num">Now</th><th class="num">Value</th><th class="num">P/L</th></tr></thead><tbody>';
+      for(const p of pos){
+        const pnl=+p.cashPnl||0, cur=+p.currentValue||0;
+        totCost+=+p.initialValue||0; totNow+=cur;
+        const wx=/highest temperature/i.test(p.title||"")?' <span style="color:var(--cyan);font-size:9px">◈WX</span>':'';
+        html+=`<tr><td style="font-family:inherit;font-size:12px">${(p.title||"").replace("Will the highest temperature in ","").replace(" on ", " · ")}${wx}</td>
+          <td>${p.outcome||""}</td><td class="num">${(+p.size).toFixed(0)}</td>
+          <td class="num">${(+p.avgPrice*100).toFixed(1)}¢</td><td class="num">${(+p.curPrice*100).toFixed(1)}¢</td>
+          <td class="num">${fmt$(cur)}</td>
+          <td class="num"><span class="${pnl>=0?'pos':'neg'}" style="font-weight:800">${fmt$(pnl)}</span></td></tr>`;
+      }
+      html+=`</tbody></table><div class="stat-row" style="margin-top:12px">
+        <div class="stat"><div class="label">Invested</div><div class="val">${fmt$(totCost)}</div></div>
+        <div class="stat"><div class="label">Current value</div><div class="val">${fmt$(totNow)}</div></div>
+        <div class="stat"><div class="label">Unrealized P/L</div><div class="val ${totNow-totCost>=0?'pos':'neg'}">${fmt$(totNow-totCost)}</div></div>
+      </div>`;
+    }else html+='<div class="dim">No open positions found for this wallet.</div>';
+    if(fills&&fills.length){
+      html+='<div style="margin-top:14px"><b style="font-size:11px;letter-spacing:1.5px;color:var(--cyan)">RECENT FILLS</b>'+
+        fills.map(t=>{
+          const time=new Date((+t.timestamp)*1000).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+          const side=(t.side||"").toUpperCase();
+          return `<div class="obs-line"><span>${time} <b class="${side==='BUY'?'pos':'warn'}">${side}</b></span><span>${(+t.size).toFixed(0)} × ${(t.outcome||"")} @ ${(+t.price*100).toFixed(0)}¢ — ${(t.title||"").replace("Will the highest temperature in ","").slice(0,46)}</span></div>`;
+        }).join("")+'</div>';
+    }
+    $('posBody').innerHTML=html; $('posTs').textContent=now();
+  }catch(e){$('posBody').innerHTML=errBox("Wallet sync",e);}
+}
+
+// ---------- US edge calculator (Polymarket US: NWS CLI settlement, odd-paired buckets) ----------
+const CLI_BIAS=1.0;   // calibrated Jun 8-9: CLI settles +1°F above METAR-display max (3/3 days)
+const SIGMA=1.3;      // day-ahead spread of CLI max around blended forecast
+function usBuckets(){
+  if(state.twcHigh==null)return null;
+  const blend=state.omHigh!=null?(state.twcHigh+state.omHigh)/2:state.twcHigh;
+  const mean=blend+CLI_BIAS;
+  // discrete normal over whole °F
+  const probs={};let z=0;
+  for(let t=Math.round(mean)-7;t<=Math.round(mean)+7;t++){const w=Math.exp(-0.5*Math.pow((t-mean)/SIGMA,2));probs[t]=w;z+=w;}
+  for(const t in probs)probs[t]/=z;
+  // odd-paired buckets like 85-86 / 87-88, with tails
+  const lo=Math.round(mean)%2===0?Math.round(mean)-5:Math.round(mean)-4; // an odd anchor below
+  const buckets=[{lbl:`${lo-1} or below`,p:0}];
+  for(let b=lo;b<lo+8;b+=2)buckets.push({lbl:`${b} to ${b+1}`,p:0});
+  buckets.push({lbl:`${lo+8} or above`,p:0});
+  for(const t in probs){
+    const ti=+t;
+    let hit=buckets.find(B=>{
+      const m=B.lbl.match(/^(\d+) to (\d+)/); if(m)return ti>=+m[1]&&ti<=+m[2];
+      if(B.lbl.includes("below"))return ti<=+B.lbl.match(/\d+/)[0];
+      return ti>=+B.lbl.match(/\d+/)[0];
+    });
+    if(hit)hit.p+=probs[t];
+  }
+  return {mean,buckets};
+}
+function renderUS(){
+  const r=usBuckets();
+  if(!r){$('usBody').innerHTML='<div class="dim">Need forecast data first — refresh.</div>';return;}
+  const saved=JSON.parse(localStorage.getItem("wxUSprices")||"{}");
+  let html=`<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,197,255,.06);border:1px solid var(--line);border-radius:6px">We expect the official high to land around <b class="warn" style="font-size:16px">${Math.round(r.mean)}°F</b> <span class="dim">(forecasts + the +1°F settlement bias we measured)</span></div>`;
+  html+='<table><thead><tr><th>Bucket</th><th class="num">Our odds</th><th class="num">App says</th><th>Verdict</th></tr></thead><tbody>';
+  r.buckets.forEach((B,i)=>{
+    const pct=B.p*100, key=B.lbl;
+    const priceVal=saved[key]??"";
+    const edge=priceVal!==""?pct-(+priceVal):null;
+    let verdict;
+    if(edge==null) verdict='<span class="dim" style="font-size:11px">type app % ←</span>';
+    else if(edge>=10){
+      // quarter-Kelly sizing from the live bankroll number
+      const p=pct/100, q=(+priceVal)/100;
+      const kelly=Math.max(0,(p-q)/(1-q))*0.25;
+      const bank=(+($('bankroll')?.value||35));
+      const dollars=Math.min(kelly*bank, bank*0.15); // hard cap 15% of bankroll
+      verdict=`<span class="pos" style="font-weight:800">CHEAP — maybe buy ~$${dollars.toFixed(0)}</span> <button onclick="quickLog('${key}',${+priceVal},${dollars.toFixed(0)},${pct.toFixed(0)})" style="padding:2px 10px;font-size:10px;margin-left:4px">＋ log it</button>`;
+    }
+    else if(edge<=-10) verdict='<span class="neg" style="font-weight:800">OVERPRICED — avoid</span>';
+    else verdict='<span class="dim" style="font-weight:700">FAIR — no edge</span>';
+    html+=`<tr><td>${B.lbl}</td><td class="num">${pct.toFixed(0)}%</td>
+      <td class="num"><input data-us="${key}" value="${priceVal}" placeholder="%" style="width:54px;padding:3px 6px;border-radius:4px;text-align:right" onchange="usPrice(this)"></td>
+      <td>${verdict}</td></tr>`;
+  });
+  html+='</tbody></table><div class="dim" style="margin-top:8px">"Maybe buy" means our odds beat the app price by 10+ points — confirm with Claude before ordering. Outer buckets are the model\'s blind spot; be extra skeptical there.</div>';
+  $('usBody').innerHTML=html; $('usTs').textContent=now();
+  // freeze the model's first estimate of the day for the scoreboard (only for today/tomorrow markets)
+  const key=$('dateSel').value;
+  const log=JSON.parse(localStorage.getItem("wxModelLog")||"{}");
+  if(!log[key]&&key>=localISO(new Date())){
+    log[key]={est:+r.mean.toFixed(1),frozenAt:new Date().toLocaleString(),actual:""};
+    localStorage.setItem("wxModelLog",JSON.stringify(log));
+  }
+  renderScoreboard();
+}
+function renderScoreboard(){
+  const log=JSON.parse(localStorage.getItem("wxModelLog")||"{}");
+  const days=Object.keys(log).sort().slice(-10);
+  if(!days.length){$('sbBody').innerHTML='<div class="dim">First estimate gets frozen automatically on the next refresh.</div>';return;}
+  let html='<table><thead><tr><th>Market date</th><th class="num">Model est.</th><th class="num">Official settle</th><th class="num">Error</th></tr></thead><tbody>';
+  let errs=[];
+  for(const d of days){
+    const e=log[d];
+    const err=e.actual!==""?(+e.actual-e.est):null;
+    if(err!=null)errs.push(err);
+    html+=`<tr><td>${d}</td><td class="num">${e.est}°F</td>
+      <td class="num"><input data-sb="${d}" value="${e.actual}" placeholder="°F" style="width:54px;padding:3px 6px;border-radius:4px;text-align:right" onchange="sbActual(this)"></td>
+      <td class="num">${err==null?'<span class="dim">–</span>':`<span class="${Math.abs(err)<=1?'pos':'warn'}" style="font-weight:800">${err>0?"+":""}${err.toFixed(1)}</span>`}</td></tr>`;
+  }
+  html+='</tbody></table>';
+  if(errs.length>=2){
+    const meanErr=errs.reduce((a,b)=>a+b,0)/errs.length;
+    const hit=errs.filter(e=>Math.abs(e)<=1).length;
+    html+=`<div class="dim" style="margin-top:8px">${errs.length} scored days · within ±1°F: <b class="${hit/errs.length>=0.6?'pos':'warn'}">${hit}/${errs.length}</b> · average miss: <b>${meanErr>0?"+":""}${meanErr.toFixed(1)}°F</b>${Math.abs(meanErr)>=0.7?` — <span class="warn">tell Claude to retune the bias by ${meanErr>0?"+":""}${meanErr.toFixed(1)}</span>`:" — bias looks healthy"}</div>`;
+  }
+  $('sbBody').innerHTML=html; $('sbTs').textContent=now();
+}
+function sbActual(el){
+  const log=JSON.parse(localStorage.getItem("wxModelLog")||"{}");
+  if(log[el.dataset.sb]){log[el.dataset.sb].actual=el.value;localStorage.setItem("wxModelLog",JSON.stringify(log));}
+  renderScoreboard();
+}
+// ---------- game plan banner: what to do right now ----------
+function renderPlan(){
+  const et=+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',hour12:false}).format(new Date());
+  let msg;
+  if(et<8) msg="<b>Early morning.</b> Nothing to do — the 8 AM ET run will reassess overnight models. Coffee first.";
+  else if(et<11) msg="<b>Morning.</b> Read the 8 AM run's verdict, compare with your app's prices in the Should I Buy card, adjust or sit tight.";
+  else if(et<15) msg="<b>Peak window (11 AM-3 PM ET).</b> Watch the Temp Trace — the day's high is being set right now. A thunderstorm at the airport before the peak = high locks low. Max-so-far is your floor.";
+  else if(et<17) msg="<b>Settlement reveal (~4:30-5 PM ET).</b> The official preliminary climate report drops — ask Claude to pull it. If the winning bucket still trades under ~85¢ in your app, that's the cleanest buy of the day.";
+  else if(et<19) msg="<b>Late day.</b> High is locked. Only action: salvage-sell dead positions, record the official settle in the Scoreboard.";
+  else msg="<b>Evening.</b> Day is done — enter the official settle in the Scoreboard, mark trades won/lost in the log. The 10 PM run scouts tomorrow.";
+  $('gameplan').innerHTML=`<span style="color:var(--orange);font-size:18px">▶</span><span style="font-size:13.5px">${msg}</span>`;
+}
+function usPrice(el){
+  const saved=JSON.parse(localStorage.getItem("wxUSprices")||"{}");
+  saved[el.dataset.us]=el.value;
+  localStorage.setItem("wxUSprices",JSON.stringify(saved));
+  renderUS();
+}
+function quickLog(bucket,price,dollars,modelPct){
+  const fill=prompt(`Log ${bucket} YES — your actual fill price in cents (app showed ${price}):`,price);
+  if(fill===null||isNaN(+fill))return;
+  const spend=prompt(`Dollars spent (suggested $${dollars}):`,dollars);
+  if(spend===null||isNaN(+spend))return;
+  const shares=+( (+spend)/((+fill)/100) ).toFixed(2);
+  trades.push({id:Date.now(),date:$('dateSel').value,city:$('citySel').value,bucket:bucket+" (US)",
+    side:"YES",price:+fill,shares,status:"open",note:`Model ${modelPct}% vs app ${price}% — quick-logged`});
+  saveTrades();
+  alert(`Logged: ${shares} shares of ${bucket} at ${fill}¢. Now place the resting sell at your target!`);
+}
+
+// ---------- snapshot: copy current dashboard state as text for Claude ----------
+async function copySnapshot(){
+  const L=[];
+  L.push(`TOLANDS WEATHER DASHBOARD SNAPSHOT — ${new Date().toLocaleString()}`);
+  L.push(`City: ${CITIES[$('citySel').value].label} · Market date: ${$('dateSel').value}`);
+  if(state.rows){
+    L.push("\nMARKET (bid/ask):");
+    state.rows.forEach(r=>L.push(`  ${r.lbl}: ${(r.bid*100).toFixed(1)}¢ / ${(r.ask*100).toFixed(1)}¢${r===state.fav?"  << market favorite":""}${bucketContains(r.lbl,state.twcHigh)?"  << model bucket":""}`));
+  }
+  L.push(`\nFORECAST: TWC high ${state.twcHigh??"?"}°F · independent model ${state.omHigh??"?"}°F`);
+  L.push(`OBS TODAY: settlement-feed max ${state.wuMax??"?"}°F (obs source: ${state.metarSrc||"?"})`);
+  const sys=$('sysBody').innerText.trim(); if(sys)L.push(`\nSYSTEM CHECK:\n${sys}`);
+  const pos=$('posBody').innerText.trim(); if(pos&&!pos.startsWith("Paste"))L.push(`\nPOSITIONS:\n${pos}`);
+  if(trades.length){
+    L.push("\nTRADE LOG:");
+    trades.forEach(t=>L.push(`  ${t.date} ${t.city} ${t.bucket} ${t.side} ${t.price}¢ x${t.shares} [${t.status}]${t.note?" — "+t.note:""}`));
+  }
+  const txt=L.join("\n");
+  try{await navigator.clipboard.writeText(txt);alert("Snapshot copied! Paste it to Claude in the Cowork chat.");}
+  catch(e){prompt("Copy this snapshot:",txt);}
+}
+
+// ---------- refresh (ordered so panels can cross-reference, then self-test) ----------
+async function refreshAll(){
+  await Promise.allSettled([loadForecast(),loadWU(),loadMetars(),loadHourly(),loadPositions()]);
+  await loadMarket();           // market verdict needs the TWC high
+  renderUS();                   // US-bucket probabilities need the forecasts
+  renderPlan();                 // time-aware game plan
+  runChecks();                  // then fact-check everything
+}
+renderTrades();
+// evening default: the next tradeable market is tomorrow's
+if(new Date().getHours()>=18){const d=new Date();d.setDate(d.getDate()+1);$('dateSel').value=localISO(d);}
+refreshAll();
+setInterval(refreshAll,5*60*1000); // auto-refresh every 5 min
+</script>
+</body>
+</html>

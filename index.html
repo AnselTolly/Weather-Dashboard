@@ -98,7 +98,7 @@
 </head>
 <body>
 <header>
-  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.3</span></small></h1>
+  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.5</span></small></h1>
   <div class="controls">
     <select id="citySel"></select>
     <input type="date" id="dateSel">
@@ -128,10 +128,6 @@
         <div class="chartwrap" style="height:130px"><canvas id="sparkChart"></canvas></div>
         <div class="dim" style="font-size:10.5px;text-align:center;margin-top:2px">today — live trend</div>
       </div>
-      <div style="flex:1;min-width:260px">
-        <div class="chartwrap" style="height:130px"><canvas id="histChart"></canvas></div>
-        <div class="dim" style="font-size:10.5px;text-align:center;margin-top:2px">last 5 days — sensor highs (orange) &amp; lows (cyan) to 0.01°F · <span style="color:#ffd166">◆ model's predicted high</span> (recorded from Jun 10 onward) — diamonds above bars = we under-predict, below = over-predict</div>
-      </div>
       <div class="stat-row" style="flex:0 1 320px;min-width:200px">
         <div class="stat" style="min-width:80px"><div class="label">Humidity</div><div class="val" id="ccRh">–</div></div>
         <div class="stat" style="min-width:80px"><div class="label">Wind</div><div class="val" id="ccWind" style="font-size:16px;padding-top:5px">–</div></div>
@@ -159,6 +155,11 @@
     <div class="dim" style="margin-top:10px">Max-so-far is a hard floor on the settlement high. The market settles on this feed (whole °F), not NWS.</div>
   </div>
 
+  <div class="card">
+    <h2>5-Day Highs &amp; Lows vs Model</h2>
+    <div class="chartwrap" style="height:240px"><canvas id="histChart"></canvas></div>
+    <div class="dim" style="margin-top:8px">Sensor highs (orange) &amp; lows (cyan) to 0.01°F · <span style="color:#ffd166">◆ model's predicted high</span> (recorded from Jun 10 onward). Each diamond shows Δ = predicted − actual (<span class="neg">red = we ran hot</span>, <span class="pos">green = we ran cold</span>, grey = within ±0.5°). A streak of one color means retune the bias. Official settles are whole degrees and can differ ±1° from sensor values.</div>
+  </div>
 </div>
 
 <div class="grid">
@@ -896,11 +897,18 @@ async function loadHistory(){
       plugins:[{id:'barVals',afterDatasetsDraw(ch){
         const{ctx}=ch;ctx.save();ctx.font="8.5px 'Share Tech Mono',monospace";ctx.textAlign='center';
         const cols=['#ffb578','#7fd8ff','#ffd166'];
-        ch.data.datasets.forEach((ds,di)=>{ctx.fillStyle=cols[di]||'#fff';
+        const actualHighs=ch.data.datasets[0].data;
+        ch.data.datasets.forEach((ds,di)=>{
           ch.getDatasetMeta(di).data.forEach((bar,i)=>{
             if(ds.data[i]==null)return;
+            ctx.fillStyle=cols[di]||'#fff';
             const y=di===2?bar.y+14:bar.y-3; // prediction label below its diamond
             ctx.fillText((+ds.data[i]).toFixed(2),bar.x,y);
+            if(di===2&&actualHighs[i]!=null){
+              const delta=+ds.data[i]-actualHighs[i]; // + = predicted hotter than reality
+              ctx.fillStyle=delta>0.5?'#ff5c5c':delta<-0.5?'#3dd68c':'#7d8da1';
+              ctx.fillText((delta>0?'Δ+':'Δ')+delta.toFixed(2),bar.x,y+11);
+            }
           });});
         ctx.restore();}}]
     });

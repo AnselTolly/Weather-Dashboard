@@ -98,7 +98,7 @@
 </head>
 <body>
 <header>
-  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.1</span></small></h1>
+  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.3</span></small></h1>
   <div class="controls">
     <select id="citySel"></select>
     <input type="date" id="dateSel">
@@ -126,6 +126,11 @@
       </div>
       <div style="flex:1;min-width:220px">
         <div class="chartwrap" style="height:130px"><canvas id="sparkChart"></canvas></div>
+        <div class="dim" style="font-size:10.5px;text-align:center;margin-top:2px">today — live trend</div>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <div class="chartwrap" style="height:130px"><canvas id="histChart"></canvas></div>
+        <div class="dim" style="font-size:10.5px;text-align:center;margin-top:2px">last 5 days — sensor highs (orange) &amp; lows (cyan) to 0.01°F · <span style="color:#ffd166">◆ model's predicted high</span> (recorded from Jun 10 onward) — diamonds above bars = we under-predict, below = over-predict</div>
       </div>
       <div class="stat-row" style="flex:0 1 320px;min-width:200px">
         <div class="stat" style="min-width:80px"><div class="label">Humidity</div><div class="val" id="ccRh">–</div></div>
@@ -311,7 +316,7 @@ function localISO(d){const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);r
 function setDay(offset){const d=new Date();d.setDate(d.getDate()+offset);$('dateSel').value=localISO(d);refreshAll();}
 $('dateSel').value=localISO(new Date());
 $('tDate').value=localISO(new Date());
-$('citySel').onchange=refreshAll; $('dateSel').onchange=refreshAll;
+$('citySel').onchange=()=>{refreshAll();loadHistory();}; $('dateSel').onchange=refreshAll;
 
 function slugFor(cityKey,dateStr){
   const months=["january","february","march","april","may","june","july","august","september","october","november","december"];
@@ -371,7 +376,7 @@ async function loadMarket(){
 }
 
 // ---------- charts (HUD theme) ----------
-const charts={trace:null,hourly:null,spark:null};
+const charts={trace:null,hourly:null,spark:null,hist:null};
 const CHART_GRID="rgba(46,197,255,.08)", CHART_TICK="#5d7e94";
 if(window.Chart){Chart.defaults.font.family="'Rajdhani',sans-serif";Chart.defaults.color=CHART_TICK;}
 function drawLine(slot,canvasId,labels,data,pointColors,annotateMax){
@@ -849,6 +854,59 @@ function quickLog(bucket,price,dollars,modelPct){
   alert(`Logged: ${shares} shares of ${bucket} at ${fill}¢. Now place the resting sell at your target!`);
 }
 
+// ---------- 5-day high/low history (sensor-precise, 2 decimals) ----------
+async function loadHistory(){
+  if(!window.Chart)return;
+  const c=CITIES[$('citySel').value];
+  try{
+    const days=[];
+    for(let i=5;i>=1;i--){
+      const d0=new Date();d0.setDate(d0.getDate()-i);d0.setHours(0,0,0,0);
+      const d1=new Date(d0);d1.setHours(23,59,59,0);
+      days.push({label:d0.toLocaleDateString([],{weekday:'short',day:'numeric'}),key:localISO(d0),start:d0.toISOString(),end:d1.toISOString()});
+    }
+    const modelLog=JSON.parse(localStorage.getItem("wxModelLog")||"{}");
+    const results=await Promise.all(days.map(d=>
+      fetchJSON(`https://api.weather.gov/stations/${c.metar}/observations?start=${encodeURIComponent(d.start)}&end=${encodeURIComponent(d.end)}&limit=500`).catch(()=>null)));
+    const labels=[],highs=[],lows=[],preds=[];
+    results.forEach((r,i)=>{
+      const temps=((r&&r.features)||[])
+        .map(f=>{const t=f.properties&&f.properties.temperature;return t&&t.value!=null&&(!t.qualityControl||["V","C","S"].includes(t.qualityControl))?t.value:null;})
+        .filter(v=>v!=null).map(cv=>cv*1.8+32);
+      if(temps.length){
+        labels.push(days[i].label);
+        highs.push(+Math.max(...temps).toFixed(2));
+        lows.push(+Math.min(...temps).toFixed(2));
+        preds.push(modelLog[days[i].key]?modelLog[days[i].key].est:null);
+      }
+    });
+    if(!labels.length)return;
+    if(charts.hist)charts.hist.destroy();
+    charts.hist=new Chart($('histChart').getContext('2d'),{type:'bar',
+      data:{labels,datasets:[
+        {label:'High',data:highs,backgroundColor:'rgba(255,123,28,.7)',borderColor:'#ff7b1c',borderWidth:1,borderRadius:3,order:2},
+        {label:'Low',data:lows,backgroundColor:'rgba(46,197,255,.5)',borderColor:'#2ec5ff',borderWidth:1,borderRadius:3,order:2},
+        {label:'Model predicted',type:'line',data:preds,borderColor:'#ffffff',backgroundColor:'#ffffff',
+         pointStyle:'rectRot',pointRadius:5,pointBorderColor:'#ffd166',pointBackgroundColor:'#ffd166',
+         borderWidth:0,showLine:false,spanGaps:false,order:1}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,
+        layout:{padding:{top:14}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>x.dataset.label+': '+x.parsed.y.toFixed(2)+'°F'}}},
+        scales:{x:{grid:{display:false}},y:{grid:{color:CHART_GRID},ticks:{callback:v=>v+'°'}}}},
+      plugins:[{id:'barVals',afterDatasetsDraw(ch){
+        const{ctx}=ch;ctx.save();ctx.font="8.5px 'Share Tech Mono',monospace";ctx.textAlign='center';
+        const cols=['#ffb578','#7fd8ff','#ffd166'];
+        ch.data.datasets.forEach((ds,di)=>{ctx.fillStyle=cols[di]||'#fff';
+          ch.getDatasetMeta(di).data.forEach((bar,i)=>{
+            if(ds.data[i]==null)return;
+            const y=di===2?bar.y+14:bar.y-3; // prediction label below its diamond
+            ctx.fillText((+ds.data[i]).toFixed(2),bar.x,y);
+          });});
+        ctx.restore();}}]
+    });
+  }catch(e){/* history is decorative — fail silent */}
+}
+
 // ---------- snapshot: copy current dashboard state as text for Claude ----------
 async function copySnapshot(){
   const L=[];
@@ -883,8 +941,10 @@ renderTrades();
 // evening default: the next tradeable market is tomorrow's
 if(new Date().getHours()>=18){const d=new Date();d.setDate(d.getDate()+1);$('dateSel').value=localISO(d);}
 refreshAll();
+loadHistory();
 setInterval(refreshAll,5*60*1000); // full refresh every 5 min
 setInterval(()=>{loadWU();renderPlan();},2*60*1000); // live station bubble every 2 min
+setInterval(loadHistory,60*60*1000); // 5-day history hourly
 </script>
 </body>
 </html>

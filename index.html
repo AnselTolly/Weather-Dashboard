@@ -96,10 +96,58 @@
   .bigtemp{font-family:var(--mono);font-size:56px;line-height:1;color:var(--orange);text-shadow:0 0 26px var(--orange-glow);text-align:center;padding:6px 10px}
   .chartwrap{position:relative;height:200px}
 </style>
+<style id="weatherTheme">
+  /* ── Weather-app retheme: overrides the HUD skin below ───────────── */
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+  :root{
+    --cyan:#2176bd; --cyan-dim:#7fb2d9; --cyan-glow:rgba(33,118,189,.15);
+    --line:rgba(23,80,130,.16); --panel:rgba(255,255,255,.78);
+    --orange:#e8741a; --orange-glow:rgba(232,116,26,.25); --orange-soft:rgba(255,166,87,.18);
+    --text:#16334d; --dim:#5b7a94; --good:#15803d; --bad:#d23c3c;
+  }
+  body{
+    background:linear-gradient(180deg,#6fb3e8 0%,#9dcdf2 35%,#d9edfb 75%,#fdf3e3 100%) fixed;
+    font-family:'Nunito','Segoe UI',sans-serif;color:var(--text);
+  }
+  h1{color:#114b7a;text-shadow:none;letter-spacing:1px}
+  h1 .dot{color:var(--orange);text-shadow:none}
+  h1 small{color:#3d6991;text-shadow:none}
+  .card{
+    background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.7);border-radius:20px;
+    box-shadow:0 6px 24px rgba(23,80,130,.14);
+  }
+  .card::before,.card::after{display:none}
+  .card h2{color:#1a5e96;text-shadow:none;letter-spacing:1.2px}
+  .card h2::before{content:""}
+  select,input,button{background:rgba(255,255,255,.9);border:1px solid var(--line);color:var(--text);border-radius:999px}
+  input[type=date]{color-scheme:light}
+  button:hover{box-shadow:0 4px 14px rgba(33,118,189,.25);color:var(--cyan)}
+  button.primary{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:0 4px 14px rgba(232,116,26,.3)}
+  button.primary:hover{background:#f08a38;color:#fff}
+  .stat{background:rgba(33,118,189,.07);border:1px solid rgba(33,118,189,.12);border-radius:14px}
+  .stat .val{color:#114b7a;text-shadow:none}
+  .bigtemp{color:var(--orange);text-shadow:none;font-family:'Nunito',sans-serif;font-weight:900}
+  .pos{color:var(--good)!important;text-shadow:none!important}
+  .neg{color:var(--bad)!important;text-shadow:none!important}
+  .warn{color:#c45e08!important;text-shadow:none!important}
+  th{color:var(--dim)} td{border-bottom:1px solid rgba(23,80,130,.08)}
+  .bucket-hot td{background:var(--orange-soft);color:#9a4a08}
+  .bucket-hot td:first-child{border-left:3px solid var(--orange);text-shadow:none}
+  .bar{background:linear-gradient(90deg,#7fb2d9,var(--cyan) 60%,var(--orange));box-shadow:none;border-radius:999px}
+  .chip{border-radius:999px}
+  .chip.open{background:rgba(33,118,189,.1);color:#1a5e96;border-color:rgba(33,118,189,.25)}
+  .chip.won{background:rgba(21,128,61,.12);color:var(--good);border-color:rgba(21,128,61,.3)}
+  .chip.lost{background:rgba(210,60,60,.1);color:var(--bad);border-color:rgba(210,60,60,.3)}
+  .err{background:rgba(210,60,60,.08);border-color:rgba(210,60,60,.3);color:#a83232;border-radius:14px}
+  .obs-line{border-bottom:1px dashed rgba(23,80,130,.1)}
+  .footer{color:#48708f}
+  details summary{border-radius:16px!important}
+</style>
 </head>
 <body>
 <header>
-  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v3.6</span></small></h1>
+  <h1>TOLANDS<span class="dot">●</span>WEATHER<small>dashboard — Austin &amp; Claude · <span id="ver" style="color:var(--orange)">v4.0</span></small></h1>
   <div class="controls">
     <select id="citySel"></select>
     <input type="date" id="dateSel">
@@ -118,7 +166,7 @@
 
 <div class="grid">
   <div class="card" style="grid-column:1/-1">
-    <h2>Live Station — <span id="ccSt">…</span> Right Now <span class="ts" id="ccTs"></span></h2>
+    <h2>☀ Right Now at <span id="ccSt">…</span> <span class="ts" id="ccTs"></span></h2>
     <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
       <div style="flex:0 0 auto;text-align:center">
         <div class="bigtemp" id="ccTemp">–</div>
@@ -140,13 +188,13 @@
   </div>
 
   <div class="card">
-    <h2>Should I Buy? — Your App's Buckets <span class="ts" id="usTs"></span></h2>
+    <h2>💰 Should I Buy? <span class="ts" id="usTs"></span></h2>
     <div class="dim" style="margin-bottom:10px">Open the market in your Polymarket app, type each bucket's <b>%</b> into the middle column, and read the verdict. (Your exchange doesn't publish prices publicly, so this column is you — everything else is automatic.)</div>
     <div id="usBody"><div class="dim">Loading forecast…</div></div>
   </div>
 
   <div class="card">
-    <h2>Settlement Watch (Wunderground feed) <span class="ts" id="wuTs"></span></h2>
+    <h2>🌡 Today's Max — What Decides the Market <span class="ts" id="wuTs"></span></h2>
     <div class="stat-row" style="margin-bottom:12px">
       <div class="stat"><div class="label">Max so far today</div><div class="val warn" id="wuMax">–</div></div>
       <div class="stat"><div class="label">Latest ob</div><div class="val" id="wuLast">–</div></div>
@@ -157,7 +205,7 @@
   </div>
 
   <div class="card" id="histCard" style="display:flex;flex-direction:column">
-    <h2>5-Day Highs &amp; Lows vs Model</h2>
+    <h2>📊 This Week — Actual vs Our Predictions</h2>
     <div class="chartwrap" style="flex:1;min-height:260px"><canvas id="histChart"></canvas></div>
     <div class="dim" style="margin-top:8px">Sensor highs (orange) &amp; lows (cyan) to 0.01°F · <span style="color:#ffd166">◆ model's predicted high</span> (recorded from Jun 10 onward). Each diamond shows Δ = predicted − actual (<span class="neg">red = we ran hot</span>, <span class="pos">green = we ran cold</span>, grey = within ±0.5°). A streak of one color means retune the bias. Official settles are whole degrees and can differ ±1° from sensor values.</div>
   </div>
@@ -180,7 +228,7 @@
   </div>
 
   <div class="card" style="grid-column:1/-1">
-    <h2>Trade Log &amp; P/L</h2>
+    <h2>📒 My Trades &amp; Profit</h2>
     <div class="stat-row" style="margin-bottom:16px">
       <div class="stat bigval"><div class="label">Bankroll start</div><div class="val">$<input id="bankroll" type="number" value="500" style="width:84px;font-size:17px;padding:3px 8px" onchange="saveBankroll()"></div></div>
       <div class="stat"><div class="label">Realized P/L</div><div class="val" id="plTotal">$0.00</div></div>
@@ -215,7 +263,7 @@
 
 <details id="diag" style="margin-bottom:16px">
   <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--panel);border:1px solid var(--line);border-radius:8px">
-    <span style="color:var(--cyan);font-size:12px;letter-spacing:2px;font-weight:700">▸ DATA &amp; DIAGNOSTICS</span>
+    <span style="color:var(--cyan);font-size:12px;letter-spacing:2px;font-weight:800">▸ MORE DATA &amp; SYSTEM HEALTH</span>
     <span id="diagPill" class="chip open">checking…</span>
     <span class="dim" style="font-size:11px">charts, raw feeds, integrity tests — opens automatically if something fails</span>
   </summary>
@@ -379,18 +427,18 @@ async function loadMarket(){
 
 // ---------- charts (HUD theme) ----------
 const charts={trace:null,hourly:null,spark:null,hist:null};
-const CHART_GRID="rgba(46,197,255,.08)", CHART_TICK="#5d7e94";
-if(window.Chart){Chart.defaults.font.family="'Rajdhani',sans-serif";Chart.defaults.color=CHART_TICK;}
+const CHART_GRID="rgba(23,80,130,.1)", CHART_TICK="#5b7a94";
+if(window.Chart){Chart.defaults.font.family="'Nunito',sans-serif";Chart.defaults.color=CHART_TICK;}
 function drawLine(slot,canvasId,labels,data,pointColors,annotateMax){
   if(!window.Chart)return;
   if(charts[slot])charts[slot].destroy();
   const ctx=$(canvasId).getContext("2d");
   const g=ctx.createLinearGradient(0,0,0,200);
-  g.addColorStop(0,"rgba(46,197,255,.25)");g.addColorStop(1,"rgba(46,197,255,0)");
-  const dsets=[{data,borderColor:"#2ec5ff",backgroundColor:g,fill:true,tension:.35,borderWidth:2,
-    pointRadius:pointColors?3:0,pointBackgroundColor:pointColors||"#2ec5ff",pointBorderWidth:0}];
+  g.addColorStop(0,"rgba(33,118,189,.22)");g.addColorStop(1,"rgba(33,118,189,0)");
+  const dsets=[{data,borderColor:"#2176bd",backgroundColor:g,fill:true,tension:.35,borderWidth:2.5,
+    pointRadius:pointColors?3:0,pointBackgroundColor:pointColors||"#2176bd",pointBorderWidth:0}];
   if(annotateMax!=null){
-    dsets.push({data:labels.map(()=>annotateMax),borderColor:"#ff7b1c",borderDash:[6,5],borderWidth:1.5,pointRadius:0,fill:false});
+    dsets.push({data:labels.map(()=>annotateMax),borderColor:"#e8741a",borderDash:[6,5],borderWidth:1.5,pointRadius:0,fill:false});
   }
   charts[slot]=new Chart(ctx,{type:"line",
     data:{labels,datasets:dsets},
@@ -460,7 +508,7 @@ async function loadHourly(){
       const d=new Date(t); const h=d.toLocaleTimeString([],{hour:'numeric'});
       return d.getHours()===0?d.toLocaleDateString([],{weekday:'short'}):h;
     });
-    const ptColors=f.validTimeLocal.map(t=>t.startsWith(date)?"#ff7b1c":"rgba(46,197,255,.55)");
+    const ptColors=f.validTimeLocal.map(t=>t.startsWith(date)?"#e8741a":"rgba(33,118,189,.5)");
     const sel=f.temperature.filter((_,i)=>f.validTimeLocal[i].startsWith(date));
     drawLine("hourly","hourlyChart",labels,f.temperature,ptColors,null);
     $('hourlyNote').innerHTML=sel.length
@@ -666,7 +714,7 @@ async function runChecks(){
       const ba=book.asks&&book.asks.length?+book.asks[book.asks.length-1].price:null;
       if(bb!=null&&ba!=null){
         const liveMid=(bb+ba)/2, diff=Math.abs(liveMid-state.fav.mid);
-        add(diff<=0.05?"PASS":"WARN","PRICE FRESHNESS",`${state.fav.lbl}: dashboard ${(state.fav.mid*100).toFixed(0)}¢ vs live book ${(liveMid*100).toFixed(0)}¢ (Δ${(diff*100).toFixed(0)}¢${diff>0.05?" — dashboard is stale, trust the live book":""})`);
+        add(diff<=0.05?"PASS":"WARN","PRICE FRESHNESS (global ref book — not your app)",`${state.fav.lbl}: cached ${(state.fav.mid*100).toFixed(0)}¢ vs live ${(liveMid*100).toFixed(0)}¢ (Δ${(diff*100).toFixed(0)}¢${diff>0.05?" — global panel is stale":""})`);
       }else add("WARN","PRICE FRESHNESS","Live book empty for leading bucket");
     }else add("WARN","PRICE FRESHNESS","No leading bucket/token to verify");
   }catch(e){add("WARN","PRICE FRESHNESS","CLOB unreachable: "+e.message);}
@@ -736,21 +784,26 @@ async function loadPositions(){
 }
 
 // ---------- US edge calculator (Polymarket US: NWS CLI settlement, odd-paired buckets) ----------
-const CLI_BIAS=1.0;   // calibrated Jun 8-9: CLI settles +1°F above METAR-display max (3/3 days)
+function cliBias(){return +(localStorage.getItem("wxBias")||1.0);} // calibrated Jun 8-9: +1°F, tunable via Scoreboard
 const SIGMA=1.3;      // day-ahead spread of CLI max around blended forecast
+function setBias(){
+  const v=prompt("Settlement bias in °F (current "+cliBias()+"). The Scoreboard's average miss tells you the adjustment:",cliBias());
+  if(v===null||isNaN(+v))return;
+  localStorage.setItem("wxBias",v);renderUS();
+}
 function usBuckets(){
   if(state.twcHigh==null)return null;
   const blend=state.omHigh!=null?(state.twcHigh+state.omHigh)/2:state.twcHigh;
-  const mean=blend+CLI_BIAS;
+  const mean=blend+cliBias();
   // discrete normal over whole °F
   const probs={};let z=0;
   for(let t=Math.round(mean)-7;t<=Math.round(mean)+7;t++){const w=Math.exp(-0.5*Math.pow((t-mean)/SIGMA,2));probs[t]=w;z+=w;}
   for(const t in probs)probs[t]/=z;
-  // odd-paired buckets like 85-86 / 87-88, with tails
-  const lo=Math.round(mean)%2===0?Math.round(mean)-5:Math.round(mean)-4; // an odd anchor below
-  const buckets=[{lbl:`${lo-1} or below`,p:0}];
-  for(let b=lo;b<lo+8;b+=2)buckets.push({lbl:`${b} to ${b+1}`,p:0});
-  buckets.push({lbl:`${lo+8} or above`,p:0});
+  // odd-anchored pairs exactly like the app lists them: e.g. "84 or below", 85-86 … 91-92, "93 or above"
+  let start=Math.round(mean); start=start%2===0?start-3:start-2; // lowest listed pair
+  const buckets=[{lbl:`${start-1} or below`,p:0}];
+  for(let b=start;b<start+8;b+=2)buckets.push({lbl:`${b} to ${b+1}`,p:0});
+  buckets.push({lbl:`${start+8} or above`,p:0});
   for(const t in probs){
     const ti=+t;
     let hit=buckets.find(B=>{
@@ -765,8 +818,10 @@ function usBuckets(){
 function renderUS(){
   const r=usBuckets();
   if(!r){$('usBody').innerHTML='<div class="dim">Need forecast data first — refresh.</div>';return;}
-  const saved=JSON.parse(localStorage.getItem("wxUSprices")||"{}");
-  let html=`<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,197,255,.06);border:1px solid var(--line);border-radius:6px">We expect the official high to land around <b class="warn" style="font-size:16px">${Math.round(r.mean)}°F</b> <span class="dim">(forecasts + the +1°F settlement bias we measured)</span></div>`;
+  // prices are stored PER MARKET DATE so yesterday's numbers can never poison today's verdicts
+  const priceKey="wxUSprices:"+$('dateSel').value;
+  const saved=JSON.parse(localStorage.getItem(priceKey)||"{}");
+  let html=`<div style="margin-bottom:10px;padding:8px 12px;background:rgba(46,197,255,.06);border:1px solid var(--line);border-radius:6px">We expect the official high to land around <b class="warn" style="font-size:16px">${Math.round(r.mean)}°F</b> <span class="dim">(forecasts + <a href="#" onclick="setBias();return false" title="click to retune">${cliBias()>0?"+":""}${cliBias()}°F bias</a> · prices below are for ${$('dateSel').value} only)</span></div>`;
   html+='<table><thead><tr><th>Bucket</th><th class="num">Our odds</th><th class="num">App says</th><th>Verdict</th></tr></thead><tbody>';
   r.buckets.forEach((B,i)=>{
     const pct=B.p*100, key=B.lbl;
@@ -832,16 +887,17 @@ function renderPlan(){
   let msg;
   if(et<8) msg="<b>Early morning.</b> Nothing to do — the 8 AM ET run will reassess overnight models. Coffee first.";
   else if(et<11) msg="<b>Morning.</b> Read the 8 AM run's verdict, compare with your app's prices in the Should I Buy card, adjust or sit tight.";
-  else if(et<15) msg="<b>Peak window (11 AM-3 PM ET).</b> Watch the Temp Trace — the day's high is being set right now. A thunderstorm at the airport before the peak = high locks low. Max-so-far is your floor.";
+  else if(et<15) msg="<b>Peak window (11 AM-3 PM ET).</b> Watch the Live Station trend above — the day's high is being set right now. A thunderstorm at the airport before the peak = high locks low. Today's-max chip is your floor.";
   else if(et<17) msg="<b>Settlement reveal (~4:30-5 PM ET).</b> The official preliminary climate report drops — ask Claude to pull it. If the winning bucket still trades under ~85¢ in your app, that's the cleanest buy of the day.";
   else if(et<19) msg="<b>Late day.</b> High is locked. Only action: salvage-sell dead positions, record the official settle in the Scoreboard.";
   else msg="<b>Evening.</b> Day is done — enter the official settle in the Scoreboard, mark trades won/lost in the log. The 10 PM run scouts tomorrow.";
   $('gameplan').innerHTML=`<span style="color:var(--orange);font-size:18px">▶</span><span style="font-size:13.5px">${msg}</span>`;
 }
 function usPrice(el){
-  const saved=JSON.parse(localStorage.getItem("wxUSprices")||"{}");
+  const priceKey="wxUSprices:"+$('dateSel').value;
+  const saved=JSON.parse(localStorage.getItem(priceKey)||"{}");
   saved[el.dataset.us]=el.value;
-  localStorage.setItem("wxUSprices",JSON.stringify(saved));
+  localStorage.setItem(priceKey,JSON.stringify(saved));
   renderUS();
 }
 function quickLog(bucket,price,dollars,modelPct){
@@ -886,10 +942,10 @@ async function loadHistory(){
     if(charts.hist)charts.hist.destroy();
     charts.hist=new Chart($('histChart').getContext('2d'),{type:'bar',
       data:{labels,datasets:[
-        {label:'High',data:highs,backgroundColor:'rgba(255,123,28,.7)',borderColor:'#ff7b1c',borderWidth:1,borderRadius:3,order:2},
-        {label:'Low',data:lows,backgroundColor:'rgba(46,197,255,.5)',borderColor:'#2ec5ff',borderWidth:1,borderRadius:3,order:2},
-        {label:'Model predicted',type:'line',data:preds,borderColor:'#ffffff',backgroundColor:'#ffffff',
-         pointStyle:'rectRot',pointRadius:5,pointBorderColor:'#ffd166',pointBackgroundColor:'#ffd166',
+        {label:'High',data:highs,backgroundColor:'rgba(232,116,26,.8)',borderColor:'#e8741a',borderWidth:1,borderRadius:5,order:2},
+        {label:'Low',data:lows,backgroundColor:'rgba(74,144,217,.65)',borderColor:'#2176bd',borderWidth:1,borderRadius:5,order:2},
+        {label:'Model predicted',type:'line',data:preds,borderColor:'#a16207',backgroundColor:'#a16207',
+         pointStyle:'rectRot',pointRadius:5,pointBorderColor:'#d97706',pointBackgroundColor:'#d97706',
          borderWidth:0,showLine:false,spanGaps:false,order:1}]},
       options:{responsive:true,maintainAspectRatio:false,animation:false,
         layout:{padding:{top:14}},
@@ -897,7 +953,7 @@ async function loadHistory(){
         scales:{x:{grid:{display:false}},y:{grid:{color:CHART_GRID},ticks:{callback:v=>v+'°'}}}},
       plugins:[{id:'barVals',afterDatasetsDraw(ch){
         const{ctx}=ch;ctx.save();ctx.font="8.5px 'Share Tech Mono',monospace";ctx.textAlign='center';
-        const cols=['#ffb578','#7fd8ff','#ffd166'];
+        const cols=['#b45309','#1d6fa8','#a16207'];
         const actualHighs=ch.data.datasets[0].data;
         ch.data.datasets.forEach((ds,di)=>{
           ch.getDatasetMeta(di).data.forEach((bar,i)=>{
@@ -907,7 +963,7 @@ async function loadHistory(){
             ctx.fillText((+ds.data[i]).toFixed(2),bar.x,y);
             if(di===2&&actualHighs[i]!=null){
               const delta=+ds.data[i]-actualHighs[i]; // + = predicted hotter than reality
-              ctx.fillStyle=delta>0.5?'#ff5c5c':delta<-0.5?'#3dd68c':'#7d8da1';
+              ctx.fillStyle=delta>0.5?'#d23c3c':delta<-0.5?'#15803d':'#64748b';
               ctx.fillText((delta>0?'Δ+':'Δ')+delta.toFixed(2),bar.x,y+11);
             }
           });});
